@@ -3,13 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'login_screen.dart';
 import 'splashscreen.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'chat_screen.dart';
+import 'models/chat_session.dart';
 
-// void main() async {
-//   WidgetsFlutterBinding.ensureInitialized();
-//   await dotenv.load(fileName: ".env");
-//   await Firebase.initializeApp();
-//   runApp(const SplashScreenApp());
-// }
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -17,6 +14,9 @@ void main() async {
 
   try {
     await dotenv.load(fileName: ".env");
+      await Hive.initFlutter();
+  Hive.registerAdapter(ChatSessionAdapter()); // Register Hive model
+  await Hive.openBox<ChatSession>('chat_sessions'); // Open box for chat sessions
 
     // Log the API key to confirm the file is loading correctly
     String? apiKey = dotenv.env['OPENAI_API_KEY'];
