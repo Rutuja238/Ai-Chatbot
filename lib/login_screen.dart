@@ -24,15 +24,23 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> googleLogin() async {
-    GoogleSignIn _googleSignIn = GoogleSignIn();
-    try {
-      var result = await _googleSignIn.signIn();
-      if (result == null) return;
+    GoogleSignIn googleSignIn = GoogleSignIn();
 
-      final userData = await result.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: userData.accessToken,
-        idToken: userData.idToken,
+    try {
+      // Force user to pick an account every time
+      await googleSignIn.signOut();
+
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        // User canceled sign-in
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
       );
 
       await FirebaseAuth.instance.signInWithCredential(credential);
@@ -50,9 +58,24 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> logout() async {
-    await GoogleSignIn().disconnect();
-    await FirebaseAuth.instance.signOut();
-    setState(() {});
+    try {
+      GoogleSignIn googleSignIn = GoogleSignIn();
+      if (await googleSignIn.isSignedIn()) {
+        await googleSignIn.signOut(); // Clears Google account cache
+        await googleSignIn.disconnect(); // Disconnects the account
+      }
+    } catch (e) {
+      print("Google Sign-Out Error: $e");
+    }
+
+    await FirebaseAuth.instance.signOut(); // Sign out from Firebase
+
+    if (mounted) {
+      Navigator.pushReplacementNamed(
+        context,
+        "/login",
+      ); // Go back to login screen
+    }
   }
 
   @override
@@ -96,7 +119,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: googleLogin,
-                  icon: Image.asset("images/splash_logo.png", height: 20), // Make sure you add this asset
+                  icon: Image.asset(
+                    "images/splash_logo.png",
+                    height: 20,
+                  ), // Make sure you add this asset
                   label: const Text("Login with Google"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,

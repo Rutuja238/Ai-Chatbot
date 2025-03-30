@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -35,11 +36,27 @@ void main() async {
 class SplashScreenApp extends StatelessWidget {
   const SplashScreenApp({super.key});
 
-  @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: SplashScreen(),
-     );
+      debugShowCheckedModeBanner: false,
+      title: 'AI Chatbot',
+      initialRoute: '/',
+      routes: {
+        '/': (context) => StreamBuilder<User?>(
+              stream: FirebaseAuth.instance.authStateChanges(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Scaffold(body: Center(child: CircularProgressIndicator()));
+                }
+                if (snapshot.hasData) {
+                  return ChatScreen(); // User is logged in
+                }
+                return LoginScreen(); // User is logged out
+              },
+            ),
+        '/login': (context) => LoginScreen(),
+      },
+    );
   }
 }
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Auth
 import 'models/chat_session.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -15,6 +16,7 @@ class _ChatScreenState extends State<ChatScreen> {
   ChatSession? currentChat;
   final TextEditingController _controller = TextEditingController();
   final String apiKey = dotenv.env['OPENAI_API_KEY'] ?? "";
+  final FirebaseAuth _auth = FirebaseAuth.instance; // Firebase Auth instance
 
   @override
   void initState() {
@@ -122,51 +124,94 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  void logout() async {
+    await _auth.signOut();
+    Navigator.pushReplacementNamed(context, "/login"); // Navigate to login screen
+  }
+
   Drawer buildChatHistoryDrawer() {
+    final user = _auth.currentUser; // Get logged-in user
+
     return Drawer(
-      child: ListView(
-        padding: EdgeInsets.all(10),
+      child: Column(
         children: [
-          ListTile(
-            title: Text("New Chat", style: TextStyle(fontWeight: FontWeight.bold)),
-            onTap: () {
-              createNewChat();
-              Navigator.pop(context);
-            },
-          ),
-          Divider(),
-          ...chatBox.values.map((chat) => ListTile(
-                title: Text(chat.title),
-                trailing: IconButton(
-                  icon: Icon(Icons.delete, color: Colors.red),
-                  onPressed: () => deleteChat(chat.id),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.all(10),
+              children: [
+                ListTile(
+                  title: Text("New Chat", style: TextStyle(fontWeight: FontWeight.bold)),
+                  onTap: () {
+                    createNewChat();
+                    Navigator.pop(context);
+                  },
                 ),
-                onTap: () {
-                  setState(() {
-                    currentChat = chat;
-                  });
-                  Navigator.pop(context);
-                },
-                onLongPress: () {
-                  TextEditingController renameController = TextEditingController(text: chat.title);
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: Text("Rename Chat"),
-                      content: TextField(controller: renameController),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            renameChat(renameController.text);
-                            Navigator.pop(context);
-                          },
-                          child: Text("Save"),
-                        )
-                      ],
+                Divider(),
+                ...chatBox.values.map((chat) => ListTile(
+                      title: Text(chat.title),
+                      trailing: IconButton(
+                        icon: Icon(Icons.delete, color: Colors.red),
+                        onPressed: () => deleteChat(chat.id),
+                      ),
+                      onTap: () {
+                        setState(() {
+                          currentChat = chat;
+                        });
+                        Navigator.pop(context);
+                      },
+                      onLongPress: () {
+                        TextEditingController renameController = TextEditingController(text: chat.title);
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: Text("Rename Chat"),
+                            content: TextField(controller: renameController),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  renameChat(renameController.text);
+                                  Navigator.pop(context);
+                                },
+                                child: Text("Save"),
+                              )
+                            ],
+                          ),
+                        );
+                      },
+                    )),
+              ],
+            ),
+          ),
+          if (user != null)
+            Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundImage: user.photoURL != null
+                      ? NetworkImage(user.photoURL!)
+                      : AssetImage('assets/default_avatar.png') as ImageProvider,
+                ),
+                title: Text(user.displayName ?? "User"),
+                trailing: PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'logout') logout();
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'logout',
+                      child: Row(
+                        children: [
+                          Icon(Icons.logout, color: Colors.red),
+                          SizedBox(width: 10),
+                          Text("Logout"),
+                        ],
+                      ),
                     ),
-                  );
-                },
-              )),
+                  ],
+                  child: Icon(Icons.arrow_drop_down),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -210,20 +255,9 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Row(
               children: [
                 Expanded(
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 5)],
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: TextField(
-                      controller: _controller,
-                      decoration: InputDecoration(
-                        hintText: "Type a message...",
-                        border: InputBorder.none,
-                      ),
-                    ),
+                  child: TextField(
+                    controller: _controller,
+                    decoration: InputDecoration(hintText: "Type a message..."),
                   ),
                 ),
                 IconButton(
