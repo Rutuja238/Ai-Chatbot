@@ -40,21 +40,10 @@ class SplashScreenApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'AI Chatbot',
-      initialRoute: '/',
+      home: const SplashScreen(), // Set SplashScreen as the first screen
       routes: {
-        '/': (context) => StreamBuilder<User?>(
-              stream: FirebaseAuth.instance.authStateChanges(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Scaffold(body: Center(child: CircularProgressIndicator()));
-                }
-                if (snapshot.hasData) {
-                  return ChatScreen(); // User is logged in
-                }
-                return LoginScreen(); // User is logged out
-              },
-            ),
         '/login': (context) => LoginScreen(),
+        '/chat': (context) => ChatScreen(),
       },
     );
   }

@@ -129,146 +129,149 @@ class _ChatScreenState extends State<ChatScreen> {
     Navigator.pushReplacementNamed(context, "/login"); // Navigate to login screen
   }
 
+   Widget buildChatBubble(String text, bool isUser) {
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+        padding: EdgeInsets.all(12),
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
+        decoration: BoxDecoration(
+          color: isUser ? Colors.blueAccent : Colors.grey[300],
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 4,
+              spreadRadius: 1,
+              offset: Offset(2, 2),
+            ),
+          ],
+        ),
+        child: Text(
+          text,
+          style: TextStyle(color: isUser ? Colors.white : Colors.black),
+        ),
+      ),
+    );
+  }
+
   Drawer buildChatHistoryDrawer() {
-    final user = _auth.currentUser; // Get logged-in user
+    final user = _auth.currentUser;
 
     return Drawer(
       child: Column(
         children: [
+          UserAccountsDrawerHeader(
+            accountName: Text(user?.displayName ?? "User"),
+            accountEmail: Text(user?.email ?? ""),
+            currentAccountPicture: CircleAvatar(
+              backgroundImage: user?.photoURL != null
+                  ? NetworkImage(user!.photoURL!)
+                  : AssetImage('assets/default_avatar.png') as ImageProvider,
+            ),
+          ),
+          ListTile(
+            leading: Icon(Icons.add, color: Colors.blue),
+            title: Text("New Chat"),
+            onTap: () {
+              createNewChat();
+              Navigator.pop(context);
+            },
+          ),
+          Divider(),
           Expanded(
             child: ListView(
               padding: EdgeInsets.all(10),
-              children: [
-                ListTile(
-                  title: Text("New Chat", style: TextStyle(fontWeight: FontWeight.bold)),
+              children: chatBox.values.map((chat) {
+                return ListTile(
+                  title: Text(chat.title),
+                  trailing: IconButton(
+                    icon: Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => deleteChat(chat.id),
+                  ),
                   onTap: () {
-                    createNewChat();
+                    setState(() {
+                      currentChat = chat;
+                    });
                     Navigator.pop(context);
                   },
-                ),
-                Divider(),
-                ...chatBox.values.map((chat) => ListTile(
-                      title: Text(chat.title),
-                      trailing: IconButton(
-                        icon: Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => deleteChat(chat.id),
-                      ),
-                      onTap: () {
-                        setState(() {
-                          currentChat = chat;
-                        });
-                        Navigator.pop(context);
-                      },
-                      onLongPress: () {
-                        TextEditingController renameController = TextEditingController(text: chat.title);
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: Text("Rename Chat"),
-                            content: TextField(controller: renameController),
-                            actions: [
-                              TextButton(
-                                onPressed: () {
-                                  renameChat(renameController.text);
-                                  Navigator.pop(context);
-                                },
-                                child: Text("Save"),
-                              )
-                            ],
-                          ),
-                        );
-                      },
-                    )),
-              ],
+                );
+              }).toList(),
             ),
           ),
-          if (user != null)
-            Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundImage: user.photoURL != null
-                      ? NetworkImage(user.photoURL!)
-                      : AssetImage('assets/default_avatar.png') as ImageProvider,
-                ),
-                title: Text(user.displayName ?? "User"),
-                trailing: PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'logout') logout();
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'logout',
-                      child: Row(
-                        children: [
-                          Icon(Icons.logout, color: Colors.red),
-                          SizedBox(width: 10),
-                          Text("Logout"),
-                        ],
-                      ),
-                    ),
-                  ],
-                  child: Icon(Icons.arrow_drop_down),
-                ),
-              ),
-            ),
+          Divider(),
+          ListTile(
+            leading: Icon(Icons.logout, color: Colors.red),
+            title: Text("Logout"),
+            onTap: logout,
+          ),
         ],
       ),
     );
   }
 
-  @override
+ @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(currentChat?.title ?? "Gemini Chatbot")),
+      appBar: AppBar(
+        title: Text(currentChat?.title ?? "Gemini Chatbot"),
+        actions: [
+          Padding(
+            padding: EdgeInsets.only(right: 10),
+            child: CircleAvatar(
+              backgroundImage: _auth.currentUser?.photoURL != null
+                  ? NetworkImage(_auth.currentUser!.photoURL!)
+                  : AssetImage('assets/default_avatar.png') as ImageProvider,
+            ),
+          ),
+        ],
+      ),
       drawer: buildChatHistoryDrawer(),
       body: Column(
         children: [
           Expanded(
             child: ListView.builder(
+              reverse: true,
               padding: EdgeInsets.all(10),
               itemCount: currentChat?.messages.length ?? 0,
               itemBuilder: (context, index) {
                 if (currentChat == null || currentChat!.messages.isEmpty) return SizedBox();
-
-                bool isUser = currentChat!.messages[index]["sender"] == "user";
-                return Align(
-                  alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: EdgeInsets.symmetric(vertical: 5),
-                    padding: EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: isUser ? Colors.blueAccent : Colors.grey[300],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      currentChat!.messages[index]["text"] ?? "Error: No Message",
-                      style: TextStyle(color: isUser ? Colors.white : Colors.black),
-                    ),
-                  ),
-                );
+                bool isUser = currentChat!.messages.reversed.toList()[index]["sender"] == "user";
+                return buildChatBubble(currentChat!.messages.reversed.toList()[index]["text"] ?? "", isUser);
               },
             ),
           ),
           Container(
-            padding: EdgeInsets.all(10),
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 3)],
+            ),
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _controller,
-                    decoration: InputDecoration(hintText: "Type a message..."),
+                    decoration: InputDecoration(
+                      hintText: "Type a message...",
+                      border: InputBorder.none,
+                      prefixIcon: Icon(Icons.chat_bubble_outline, color: Colors.grey),
+                    ),
                   ),
                 ),
-                IconButton(
-                  icon: Icon(Icons.send, color: Colors.blue),
-                  onPressed: () {
+                GestureDetector(
+                  onTap: () {
                     if (_controller.text.isNotEmpty) {
                       sendMessage(_controller.text);
                       _controller.clear();
                     }
                   },
-                )
+                  child: CircleAvatar(
+                    backgroundColor: Colors.blue,
+                    child: Icon(Icons.send, color: Colors.white),
+                  ),
+                ),
               ],
             ),
           ),

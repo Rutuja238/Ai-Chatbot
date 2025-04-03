@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'package:ai_chatbot/chat_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart'; 
@@ -35,11 +38,27 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    _timer = Timer(const Duration(seconds: 3), () {
-      Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (context) => const LoginScreen()));
-    });
+  _timer = Timer(const Duration(seconds: 3), () {
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(
+      builder: (context) => StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          if (snapshot.hasData) {
+            return ChatScreen(); // User is logged in
+          }
+          return LoginScreen(); // User is logged out
+        },
+      ),
+    ),
+  );
+});
   }
+
 
   @override
   void dispose() {
